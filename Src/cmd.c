@@ -14,9 +14,10 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 /* 变量定义 -----------------------------------------------------*/
-static const char *delim = ", \0";
+static const char *delim = ", \r\n\0";
 static HashTable cmd_table;
 
 UART_HandleTypeDef CMD_USART;
@@ -25,6 +26,7 @@ uint8_t DMAaRxBuffer[DMA_BUFFER_SIZE];
 char DMAUSART_RX_BUF[DMA_BUFFER_SIZE];
 int DMA_RxOK_Flag = 0;
 int buffer_count = 0;
+char uart_buffer[DMA_BUFFER_SIZE];
 
 
 /* private function -----------------------------------------------------*/
@@ -104,6 +106,38 @@ int cmd_parse(char *cmd_line,int *argc,char *argv[]){
         token = strtok(NULL, delim);
     }
     *argc = arg_index;
+    /*
+    char c_temp;
+    int i = 0, arg_index = 0;
+    int arg_cnt = 0;
+    c_temp = cmd_line[i++];
+    while(c_temp != '\r') {
+        if (c_temp == ' ') {
+            if (arg_index == 0) {
+                c_temp = cmd_line[i++];
+                continue;
+            }
+            if (arg_cnt == MAX_ARGC) {
+                return -1;
+            }
+            argv[arg_cnt][arg_index] = 0;
+            arg_cnt++;
+            arg_index = 0;
+            c_temp = cmd_line[i++];
+            continue;
+        }
+        if (arg_index == MAX_CMD_ARG_LENGTH) {
+            return -2;
+        }
+        argv[arg_cnt][arg_index++] = c_temp;
+        c_temp = cmd_line[i++];
+    }
+    if (arg_cnt == 0 && arg_index == 0) {
+        return -3;
+    }
+    argv[arg_cnt++][arg_index] = 0;
+    *argc = arg_cnt;
+    */
     return 0;
 }
 
@@ -130,6 +164,7 @@ int cmd_exec(int argc,char *argv[]){
  * @return	None
  */
 void cmd_help_func(int argc,char *argv[]){
+    // FIXME: ZeroVoid	2019/09/23	 dma usage 输出不完整，调试输出没问题
     uprintf("help:\r\n");
     HashTable_map(cmd_table, _cmd_help, NULL);
 }
@@ -150,9 +185,7 @@ void cmd_add(char *cmd_name, char *cmd_usage, void (*cmd_func)(int argc, char *a
     strcpy(usage, cmd_usage);
     new_cmd->cmd_func = cmd_func;
     new_cmd->cmd_usage = usage;
-    if (HashTable_insert(cmd_table, name, new_cmd) == NULL) {
-        uprintf("cmd register err\r\n");
-    }
+    HashTable_insert(cmd_table, name, new_cmd);
 }
 
 char print_buffer[PRINT_BUFFER_SIZE];
@@ -163,10 +196,13 @@ void uprintf(char *fmt, ...) {
     size = vsnprintf(print_buffer, PRINT_BUFFER_SIZE, fmt, arg_ptr);
     va_end(arg_ptr);
 
-    HAL_UART_Transmit_DMA(&CMD_USART, (uint8_t *)print_buffer, size);
     // 重新设置USART准备状态，并解锁串口
     CMD_USART.gState = HAL_UART_STATE_READY;
-    __HAL_UNLOCK(&CMD_USART);
+    //__HAL_UNLOCK(&CMD_USART);
+    if (HAL_UART_Transmit_DMA(&CMD_USART, (uint8_t *)print_buffer, size) != HAL_OK) {
+        uprintf("test");
+    }
+    //HAL_UART_Transmit(&CMD_USART, (uint8_t*)uart_buffer, size, 1000);
 }
 
 void uprintf_to(UART_HandleTypeDef *huart, char *fmt, ...) {
@@ -206,5 +242,6 @@ static int str_cmp(const void *a, const void *b) {
  */
 static void _cmd_help(const void *key, void **value, void *c1) {
     UNUSED(c1);
-    uprintf("%s: %s\r\n", key, ((struct cmd_info*)(*value))->cmd_usage);
+    char *usage = ((struct cmd_info*)(*value))->cmd_usage;
+    uprintf("%s: %s\r\n", key, usage);
 }

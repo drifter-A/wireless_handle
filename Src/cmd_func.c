@@ -9,18 +9,18 @@ History:        无
 Bug:            无
 *******************************************************************************/
 #include "cmd_func.h"
-#include "communication.h"
+#include "can_utils.h"
 
+void cmd_func_init(void) {
+  cmd_add("hello", "just", cmd_hello_func);
+  cmd_add("can_test", "test can", cmd_can_test);
+}
 
-void cmd_hello_func(int argc,char *argv[])
-{
-  uprintf("hello world");
-  //ChassisSignal.m_CtrlFlag._handle_flag = 0;
-  //modify_x = ORIGIN_X - (chassis.pos_x - modify_x);//修改全场定位初始值
-  //modify_y = ORIGIN_Y - (chassis.pos_y - modify_y);
-  //chassis.g_fturn = 0;//防止方向环突变 
-  //chassis_update();
-  //chassis_modify_pos(chassis_xpos,chassis_ypos,ORIGIN_X,ORIGIN_Y);
-  //chassis_poscnt = 0;
-  //Chassis_State = atoi(argv[1]);
+void cmd_hello_func(int argc,char *argv[]) {
+  uprintf("hello world\r\n");
+}
+
+void cmd_can_test(int argc, char *argv[]) {
+  uprintf("can send test\r\n");
+  can_send_test();
 }

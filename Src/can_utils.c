@@ -12,6 +12,9 @@
 
 #include "can_utils.h"
 #include "hash.h"
+#include "cmd.h"
+#include "cmd_func.h"
+#include <stdlib.h>
 
 CAN_HandleTypeDef HCAN;
 
@@ -36,16 +39,20 @@ void can_init(CAN_HandleTypeDef *hcan) {
     if (can_callback_table == NULL) {
         can_callback_table = HashTable_create(id_cmp, hash_id, NULL);
     }
+    can_func_init();
 }
-void can_callback_add(const uint32_t *id, void (*callback)(can_msg *data)) {
-    HashTable_insert(can_callback_table, id, callback);
+void can_callback_add(const uint32_t id, void (*callback)(can_msg *data)) {
+    uint32_t *can_id = (uint32_t*) malloc(sizeof(uint32_t));
+    *can_id = id;
+    HashTable_insert(can_callback_table, can_id, (void*)callback);
 }
 
 void can_exe_callback(void) {
-    void (*callback_func)(can_msg *) = HashTable_get(can_callback_table, &rx_id);
+    void (*callback_func)(can_msg *) = (void(*)(can_msg*))HashTable_get(can_callback_table, &rx_id);
     if (callback_func) {
         callback_func(&rx_buffer);
     }
+    can_exe_callback_flag = 0;
 }
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
@@ -58,6 +65,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 void can_send_test(void) {
     can_tx_data.in[0] = 0x1;
     can_tx_data.in[1] = 0xAD;
+    TxHeader.StdId = 1;
     uprintf("send data\r\n");
     HAL_CAN_AddTxMessage(&HCAN, &TxHeader, can_tx_data.ui8, &TxMailbox);
 }

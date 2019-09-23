@@ -5,7 +5,9 @@
 #endif
 #include "cmd.h"
    
+void cmd_func_init(void);
 void cmd_hello_func(int argc,char *argv[]);  
+void cmd_can_test(int argc, char *argv[]);
 
 #ifdef __cplusplus
 }
