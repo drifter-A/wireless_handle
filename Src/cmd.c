@@ -1,59 +1,100 @@
 /*******************************************************************************
  * Copyright:		BUPT
  * File Name:		cmd.c
+ * Description:		指令功能实现
  * Author:			ZeroVoid
- * Description:		None
- * Bug:				None
  * Version:			0.1
  * Data:			2019/09/19 Thu 19:50
- * Todo:			None
  *******************************************************************************/
+// TODO: ZeroVoid	due:10/7	优化内存分配管理
 
 #include "cmd.h"
-#include "communication.h"
 #include "hash.h"
 
-#ifdef CMD
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 
 /* 变量定义 -----------------------------------------------------*/
-/*
-static cmd_struct cmd_tbl[] = {
-    /*
-     * 存放命令的结构体
-     * 最后一条CMD_ADD不需要,
-     */
-    /*
-    CMD_ADD("help", "", cmd_help_func),
-    CMD_ADD("hello", "", cmd_hello_func)
-}; */
 static const char *delim = ", \0";
+static HashTable cmd_table;
 
-HashTable cmd_table;
-/*
-char cmd_line[MAX_CMD_LINE_LENGTH + 1];
+UART_HandleTypeDef CMD_USART;
 char *cmd_argv[MAX_ARGC]; 
-*/
+uint8_t DMAaRxBuffer[DMA_BUFFER_SIZE];
+char DMAUSART_RX_BUF[DMA_BUFFER_SIZE];
+int DMA_RxOK_Flag = 0;
+int buffer_count = 0;
+
 
 /* private function -----------------------------------------------------*/
-static int str_cmp(const void *a, const void *b) {
-    return strcmp((char*)a, (char*)b) != 0;
-}
+static int str_cmp(const void *a, const void *b);
 static void _cmd_help(const void *key, void **value, void *c1);
 
-/* cmd code -----------------------------------------------------*/
-void cmd_init(void)
-{
-    cmd_table = HashTable_create(str_cmp, hashStr, NULL);
+
+/* cmd实现函数定义 -----------------------------------------------------*/
+
+void usart_DMA_init(UART_HandleTypeDef *cmd_usart) {
+    CMD_USART = *cmd_usart;
+    HAL_UART_Receive_DMA(&CMD_USART, (uint8_t *)&DMAaRxBuffer, 99);
+    cmd_init();
+    __HAL_UART_ENABLE_IT(&CMD_USART,UART_IT_IDLE);
 }
 
-
-void _cmd_register(struct cmd_val * val, char *cmd_name, char *cmd_usage, void (*cmd_func)(int argc, char *argv[])) {
-    val->cmd_usage = cmd_usage;
-    val->cmd_func = cmd_func;
-    HashTable_insert(cmd_table, cmd_name, val);
+/**
+ * @brief	指令初始化函数，仅供模块初始化调用
+ * @return	None
+ */
+void cmd_init(void) {
+    if (cmd_table == NULL) {
+        cmd_table = HashTable_create(str_cmp, hashStr, NULL);
+    }
+    cmd_add("help", "show cmd usage", cmd_help_func);
 }
 
+void usart_exc_DMA() {
+    if (DMA_RxOK_Flag) {
+        int cmd_argc;
+        int erro_n;
+        erro_n = cmd_parse((char *)DMAUSART_RX_BUF, &cmd_argc, cmd_argv);  //解析命令
+        erro_n = cmd_exec(cmd_argc, cmd_argv);                             //执行命令
+        UNUSED(erro_n);
+        memset(DMAUSART_RX_BUF, 0, 98);
+        buffer_count = 0;
+        DMA_RxOK_Flag = 0;
+    }
+}
+
+void HAL_UART_IDLECallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == CMD_USART.Instance) {
+        uint8_t temp;
+        __HAL_UART_CLEAR_IDLEFLAG(huart);  //清除函数空闲标志
+        temp = huart->Instance->SR;
+        temp = huart->Instance->DR;  //读出串口的数据，防止在关闭DMA期间有数据进来，造成ORE错误
+        UNUSED(temp);
+        // temp = hdma_usart3_rx.Instance->CNDTR;
+        // huart->hdmarx->XferCpltCallback(huart->hdmarx);
+        // //调用DMA接受完毕后的回调函数，最主要的目的是要将串口的状态设置为Ready，否则无法开启下一次DMA
+        HAL_UART_DMAStop(&huart3);  //停止本次DMA
+
+        uint8_t *clr = DMAaRxBuffer-1;
+        while(*(++clr) == '\0' && clr < DMAaRxBuffer+DMA_BUFFER_SIZE);
+        strcpy((char *)DMAUSART_RX_BUF,(char *)clr);
+        if (DMAUSART_RX_BUF[0] != '\0') {
+            DMA_RxOK_Flag = 1;
+        }
+        memset(DMAaRxBuffer, 0, 98);
+        HAL_UART_Receive_DMA(&CMD_USART, (uint8_t *)&DMAaRxBuffer, 99);
+    }
+}
+
+/**
+ * @brief	将输入分割，并记录参数个数
+ * @param	cmd_line	输入指令字符串
+ *          argc        指令个数
+ *          argv        分割后参数列表
+ * @return	None
+ */
 int cmd_parse(char *cmd_line,int *argc,char *argv[]){
     char *token = strtok(cmd_line, delim);
     int arg_index = 0;
@@ -66,51 +107,104 @@ int cmd_parse(char *cmd_line,int *argc,char *argv[]){
     return 0;
 }
 
+/**
+ * @brief	指令执行函数
+ * @param	argc    参数个数
+ *          argv    参数列表 
+ * @return	0   正常执行返回
+ *          1   未找到指令
+ */
 int cmd_exec(int argc,char *argv[]){
-    /*
-    int cmd_index = 0;
-    uint32_t cmd_num;
- 
-    cmd_num = sizeof(cmd_tbl)/sizeof(cmd_tbl[0]);
-
-    if(argc == 0){  //��������ǿյģ��򷵻�
-        return -1;
-    }
-    for(cmd_index = 0;cmd_index < cmd_num;cmd_index++){   //��������
-        if(strcmp((char *)(cmd_tbl[cmd_index].cmd_name),(char *)argv[0]) == 0){  //����ҵ��������ִ���������Ӧ�ĺ���
-            cmd_tbl[cmd_index].cmd_func(argc,argv);
-            //memset(USART_RX_BUF,0,MAX_CMD_LINE_LENGTH + 1);
-            return 0;
-        }
-    }
-    return -2;
-    */
-    struct cmd_val *val = HashTable_get(cmd_table, argv[0]);
-    if (val != NULL) {
-        val->cmd_func(argc, argv);
+    struct cmd_info *cmd = (struct cmd_info*)HashTable_get(cmd_table, argv[0]);
+    if (cmd != NULL) {
+        cmd->cmd_func(argc, argv);
         return 0;
     }
+    uprintf("cmd not find\r\n");
     return 1;
 }
 
+/**
+ * @brief	指令帮助函数
+ * @param	忽略参数
+ * @return	None
+ */
 void cmd_help_func(int argc,char *argv[]){
-    /*
-    int i;
-    uint32_t cmd_num;
-    cmd_num = sizeof(cmd_tbl)/sizeof(cmd_tbl[0]);
-    uprintf("help:\n");
-    if(argc > 1){
-        //uprintf(CMD_USART,"msg:\n help\n\n");      
-        return;         
-    }
-    for(i = 0;i < cmd_num;i++){
-        uprintf("cmd:%s\nusage:%s\n\n",cmd_tbl[i].cmd_name,cmd_tbl[i].cmd_usage);
-    }*/
     uprintf("help:\r\n");
     HashTable_map(cmd_table, _cmd_help, NULL);
 }
+
+/**
+ * @brief	指令注册宏展开调用函数，建议仅在宏展开中使用
+ * @param	cmd_name    指令名称
+ *          cmd_usage   指令使用说明
+ *          cmd_func    指令函数
+ * @return	None
+ */
+void cmd_add(char *cmd_name, char *cmd_usage, void (*cmd_func)(int argc, char *argv[])) {
+    // FIXME: ZeroVoid	2019/9/23	 name or usage too long
+    struct cmd_info *new_cmd = (struct cmd_info*)malloc(sizeof(struct cmd_info)); 
+    char *name = (char*) malloc(strlen(cmd_name)+1);
+    char *usage = (char*) malloc(strlen(cmd_usage)+1);
+    strcpy(name, cmd_name);
+    strcpy(usage, cmd_usage);
+    new_cmd->cmd_func = cmd_func;
+    new_cmd->cmd_usage = usage;
+    if (HashTable_insert(cmd_table, name, new_cmd) == NULL) {
+        uprintf("cmd register err\r\n");
+    }
+}
+
+char print_buffer[PRINT_BUFFER_SIZE];
+void uprintf(char *fmt, ...) {
+    int size;
+    va_list arg_ptr;
+    va_start(arg_ptr, fmt);
+    size = vsnprintf(print_buffer, PRINT_BUFFER_SIZE, fmt, arg_ptr);
+    va_end(arg_ptr);
+
+    HAL_UART_Transmit_DMA(&CMD_USART, (uint8_t *)print_buffer, size);
+    // 重新设置USART准备状态，并解锁串口
+    CMD_USART.gState = HAL_UART_STATE_READY;
+    __HAL_UNLOCK(&CMD_USART);
+}
+
+void uprintf_to(UART_HandleTypeDef *huart, char *fmt, ...) {
+    int size;
+    va_list arg_ptr;
+    va_start(arg_ptr, fmt);
+    size = vsnprintf(print_buffer, PRINT_BUFFER_SIZE, fmt, arg_ptr);
+    va_end(arg_ptr);
+
+    HAL_UART_Transmit_DMA(huart, (uint8_t *)print_buffer, size);
+    // HAL_UART_Transmit(huart,(uint8_t *)uart_buffer,size,1000);
+}
+
+static char s[22] = {'b', 'y', 16, 6};
+void send_wave(float arg1, float arg2, float arg3, float arg4) {
+    //s[2] = 16;  // length
+    //s[3] = 6;   // type
+    s[20] = '\r';
+    s[21] = '\n';
+    memcpy(s + 4, &arg1, sizeof(arg1));
+    memcpy(s + 8, &arg2, sizeof(arg1));
+    memcpy(s + 12, &arg3, sizeof(arg1));
+    memcpy(s + 16, &arg4, sizeof(arg1));
+    HAL_UART_Transmit_DMA(&CMD_USART, (uint8_t *)s, 22);
+}
+
+/* private function defined -----------------------------------------------------*/
+/**
+ * @brief	字符串比较函数，hash表中使用
+ */
+static int str_cmp(const void *a, const void *b) {
+    return strcmp((char*)a, (char*)b) != 0;
+}
+
+/**
+ * @brief	输出函数使用说明，遍历hash表中使用
+ */
 static void _cmd_help(const void *key, void **value, void *c1) {
     UNUSED(c1);
-    uprintf("%s: %s\r\n", key, ((struct cmd_val*)(*value))->cmd_usage);
+    uprintf("%s: %s\r\n", key, ((struct cmd_info*)(*value))->cmd_usage);
 }
-#endif
