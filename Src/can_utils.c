@@ -13,12 +13,12 @@
 #include "can_utils.h"
 #include "hash.h"
 #include "cmd.h"
-#include "cmd_func.h"
+#include "can_func.h"
 #include <stdlib.h>
 
 CAN_HandleTypeDef HCAN;
 
-int can_exe_callback_flag = 0;
+int can_exc_callback_flag = 0;
 CAN_TxHeaderTypeDef TxHeader;
 CAN_RxHeaderTypeDef RxHeader;
 uint32_t TxMailbox;
@@ -41,25 +41,31 @@ void can_init(CAN_HandleTypeDef *hcan) {
     }
     can_func_init();
 }
+
+/**
+ * @brief	添加CAN回调函数
+ * @param	id          触发回调的can id 
+ * @param   callback    回调函数指针 data: can接收到数据联合体
+ * @return	None
+ */
 void can_callback_add(const uint32_t id, void (*callback)(can_msg *data)) {
     uint32_t *can_id = (uint32_t*) malloc(sizeof(uint32_t));
     *can_id = id;
     HashTable_insert(can_callback_table, can_id, (void*)callback);
 }
 
-void can_exe_callback(void) {
+void can_exc_callback(void) {
     void (*callback_func)(can_msg *) = (void(*)(can_msg*))HashTable_get(can_callback_table, &rx_id);
     if (callback_func) {
         callback_func(&rx_buffer);
     }
-    can_exe_callback_flag = 0;
 }
 
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
     HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, can_rx_data.ui8);
     rx_id = RxHeader.StdId;
     rx_buffer.df = can_rx_data.df;
-    can_exe_callback_flag = 1;
+    can_exc_callback_flag = 1;
 }
 
 void can_send_test(void) {

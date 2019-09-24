@@ -40,7 +40,7 @@ void usart_DMA_init(UART_HandleTypeDef *cmd_usart) {
     CMD_USART = *cmd_usart;
     HAL_UART_Receive_DMA(&CMD_USART, (uint8_t *)&DMAaRxBuffer, 99);
     cmd_init();
-    __HAL_UART_ENABLE_IT(&CMD_USART,UART_IT_IDLE);
+    __HAL_UART_ENABLE_IT(&CMD_USART,UART_IT_IDLE); // 开启空闲中断
 }
 
 /**
@@ -55,16 +55,13 @@ void cmd_init(void) {
 }
 
 void usart_exc_DMA() {
-    if (DMA_RxOK_Flag) {
-        int cmd_argc;
-        int erro_n;
-        erro_n = cmd_parse((char *)DMAUSART_RX_BUF, &cmd_argc, cmd_argv);  //解析命令
-        erro_n = cmd_exec(cmd_argc, cmd_argv);                             //执行命令
-        UNUSED(erro_n);
-        memset(DMAUSART_RX_BUF, 0, 98);
-        buffer_count = 0;
-        DMA_RxOK_Flag = 0;
-    }
+    int cmd_argc;
+    int erro_n;
+    erro_n = cmd_parse((char *)DMAUSART_RX_BUF, &cmd_argc, cmd_argv);  //解析命令
+    erro_n = cmd_exec(cmd_argc, cmd_argv);                             //执行命令
+    UNUSED(erro_n);
+    memset(DMAUSART_RX_BUF, 0, 98);
+    buffer_count = 0;
 }
 
 void HAL_UART_IDLECallback(UART_HandleTypeDef *huart) {
@@ -106,38 +103,6 @@ int cmd_parse(char *cmd_line,int *argc,char *argv[]){
         token = strtok(NULL, delim);
     }
     *argc = arg_index;
-    /*
-    char c_temp;
-    int i = 0, arg_index = 0;
-    int arg_cnt = 0;
-    c_temp = cmd_line[i++];
-    while(c_temp != '\r') {
-        if (c_temp == ' ') {
-            if (arg_index == 0) {
-                c_temp = cmd_line[i++];
-                continue;
-            }
-            if (arg_cnt == MAX_ARGC) {
-                return -1;
-            }
-            argv[arg_cnt][arg_index] = 0;
-            arg_cnt++;
-            arg_index = 0;
-            c_temp = cmd_line[i++];
-            continue;
-        }
-        if (arg_index == MAX_CMD_ARG_LENGTH) {
-            return -2;
-        }
-        argv[arg_cnt][arg_index++] = c_temp;
-        c_temp = cmd_line[i++];
-    }
-    if (arg_cnt == 0 && arg_index == 0) {
-        return -3;
-    }
-    argv[arg_cnt++][arg_index] = 0;
-    *argc = arg_cnt;
-    */
     return 0;
 }
 
@@ -170,10 +135,10 @@ void cmd_help_func(int argc,char *argv[]){
 }
 
 /**
- * @brief	指令注册宏展开调用函数，建议仅在宏展开中使用
+ * @brief	指令添加函数
  * @param	cmd_name    指令名称
- *          cmd_usage   指令使用说明
- *          cmd_func    指令函数
+ * @param   cmd_usage   指令使用说明
+ * @param   cmd_func    指令函数指针 argc 参数个数(含指令名称), argv 参数字符串数组
  * @return	None
  */
 void cmd_add(char *cmd_name, char *cmd_usage, void (*cmd_func)(int argc, char *argv[])) {
@@ -196,12 +161,14 @@ void uprintf(char *fmt, ...) {
     size = vsnprintf(print_buffer, PRINT_BUFFER_SIZE, fmt, arg_ptr);
     va_end(arg_ptr);
 
-    // 重新设置USART准备状态，并解锁串口
+    // 重新设置USART准备状态，并解锁串口,否则无法再次输出
     CMD_USART.gState = HAL_UART_STATE_READY;
     //__HAL_UNLOCK(&CMD_USART);
     if (HAL_UART_Transmit_DMA(&CMD_USART, (uint8_t *)print_buffer, size) != HAL_OK) {
-        uprintf("test");
+        HAL_Delay(10);
     }
+    // TODO:	ZeroVoid	due:10/7	优化输出，异步输出，可能纯在busy时再次调用，会被忽略，输出缺失
+    while(CMD_USART.hdmatx->State != HAL_DMA_STATE_READY);
     //HAL_UART_Transmit(&CMD_USART, (uint8_t*)uart_buffer, size, 1000);
 }
 

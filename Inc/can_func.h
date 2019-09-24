@@ -8,7 +8,6 @@ extern "C" {
     
 void can_func_init();
 void can_suc_rx(can_msg *data);
-
     
 #ifdef __cplusplus
 }

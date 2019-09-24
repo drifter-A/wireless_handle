@@ -12,7 +12,7 @@ TODO: flag管理,i2c以及一些其他通信,内存管理,小型os
 
 - `git clone https://github.com/ZeroVoid10/simplelib`到Src,Inc同级目录下
 
-- 右击项目->选项/options->C/C++ Compiler->Preprocessor 添加新include路径
+- 右击项目->选项/options->C/C++ Compiler->Preprocessor 添加新include路径![add](https://upload.cc/i1/2019/09/23/dcyNSW.png)
   - 或copy`Inc`下文件到IAR的'Inc`中
 - 添加文件`Src`下所有文件
 
@@ -26,6 +26,8 @@ TODO: flag管理,i2c以及一些其他通信,内存管理,小型os
 
 - `platformio.ini`中添加`build_flags = -I 路径`
 - `.c`文件放到`Src`或`src`路径下
+- 目前platformio直接编译 窗口输出会有奇怪问题
+- 暂不推荐使用
 
 ## 使用需添加代码说明
 
@@ -53,10 +55,7 @@ simplelib_init(&huart3, &hcan1);
 ``` c
     while (1)
   {
-    usart_exc_DMA();
-    if (can_exe_callback_flag) {
-      can_exe_callback();
-    }
+    simplelib_run();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -72,20 +71,51 @@ simplelib_init(&huart3, &hcan1);
 void USART3_IRQHandler(void)
 {
   /* USER CODE BEGIN USART3_IRQn 0 */
-
-  /* USER CODE END USART3_IRQn 0 */
-  HAL_UART_IRQHandler(&huart3);
-  /* USER CODE BEGIN USART3_IRQn 1 */
-
   // 添加的代码
   if(__HAL_UART_GET_FLAG(&CMD_USART, UART_FLAG_IDLE) != RESET){
     HAL_UART_IDLECallback(&CMD_USART);
     return ;
   }
 
+  /* USER CODE END USART3_IRQn 0 */
+  HAL_UART_IRQHandler(&huart3);
+  /* USER CODE BEGIN USART3_IRQn 1 */
   /* USER CODE END USART3_IRQn 1 */
 }
 
 ```
 
-- 建议将cmd相关函数放到`cmd_func.c`中，将can回调函数放到`can_func.c`中
+- 建议将cmd相关函数放到`cmd_func.c`中，将can回调函数放到`can_func.c`中，并确认在`cmd_func_init(), can_func_init()`中调用注册函数
+  
+``` c
+void cmd_func_init(void) {
+    cmd_add("hello", "just", cmd_hello_func);
+
+    #ifdef DEBUG
+    cmd_add("can_test", "test can", cmd_can_test);
+    #endif
+}
+
+void can_func_init() {
+    #ifdef DEBUG
+    can_callback_add(1, can_suc_rx);
+    #endif
+}
+
+/**
+ * @brief	指令添加函数
+ * @param	cmd_name    指令名称
+ * @param   cmd_usage   指令使用说明
+ * @param   cmd_func    指令函数指针 argc 参数个数(含指令名称), argv 参数字符串数组
+ * @return	None
+ */
+void cmd_add(char *cmd_name, char *cmd_usage, void (*cmd_func)(int argc, char *argv[]));
+
+/**
+ * @brief	添加CAN回调函数
+ * @param	id          触发回调的can id 
+ * @param   callback    回调函数指针 data: can接收到数据联合体
+ * @return	None
+ */
+void can_callback_add(const uint32_t id, void (*callback)(can_msg *data));
+```

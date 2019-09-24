@@ -25,26 +25,10 @@
 #define DMA_BUFFER_SIZE 99
 #define PRINT_BUFFER_SIZE 101
 
-/**
- * @brief   注册指令宏函数
- */
-#define CMD_ADD(cmd_name,cmd_usage,cmd_func) \
-    { \
-        cmd_name, \
-        cmd_usage, \
-        cmd_func \
-    } \
-
-typedef struct {
-    char cmd_name[MAX_CMD_ARG_LENGTH];   //命令的名字
-    char cmd_usage[MAX_CMD_INFO_LENGTH];   //命令的信息
-    void (*cmd_func)(int acgc,char *argv[]); //命令执行函数
-} cmd_struct;
-
 extern UART_HandleTypeDef CMD_USART;
+extern int DMA_RxOK_Flag;
 extern char cmd_line[MAX_CMD_LINE_LENGTH + 1];
 extern char *cmd_argv[MAX_ARGC];
-
 
 /**
  * @brief	函数信息结构体

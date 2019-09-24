@@ -8,9 +8,12 @@ extern "C" {
 #include "usart.h"
 
 #include "cmd.h"
+#include "cmd_func.h"
 #include "can_utils.h"
+#include "can_func.h"
 
 void simplelib_init(UART_HandleTypeDef *cmd_usart, CAN_HandleTypeDef *hcan);
+void simplelib_run(void);
 
 #ifdef __cplusplus
 }
