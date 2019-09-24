@@ -17,17 +17,13 @@
 //All rights reserved									  
 ////////////////////////////////////////////////////////////////////////////////// 	
 
+#include "flash.h"
+
 //FLASH起始地址
 #define STM32_FLASH_BASE 0x08000000 	//STM32 FLASH的起始地址
 #define FLASH_SAVE_ADDR  0X080A0000     //设置FLASH 保存地址(必须为4的倍数，且所在扇区,要大于本代码所占用到的扇区.
 #define FLASH_WAITETIME  50000          //FLASH等待超时时间
 
-#define u8 uint8_t
-#define u32 uint32_t
-#define u16 uint16_t
-#define vu16 volatile uint16_t
-#define vu32 volatile uint32_t
-#define vu8 volatile uint8_t
 extern float flash_data[4];
 extern float flash_chassis_init_x, flash_chassis_init_y;
 
@@ -46,7 +42,6 @@ extern float flash_chassis_init_x, flash_chassis_init_y;
 #define ADDR_FLASH_SECTOR_11    ((u32)0x080E0000) 	//扇区11起始地址,128 Kbytes 
 
  
-u32 STMFLASH_ReadWord(u32 faddr);		  	//读出字  
 void STMFLASH_Write(u32 WriteAddr,u32 *pBuffer,u32 NumToWrite);		//从指定地址开始写入指定长度的数据
 void STMFLASH_Read(u32 ReadAddr,u32 *pBuffer,u32 NumToRead);   		//从指定地址开始读出指定长度的数据
 void write_prams();

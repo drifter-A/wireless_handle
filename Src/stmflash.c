@@ -9,7 +9,6 @@
 //技术论坛:www.openedv.com
 //创建日期:2016/1/16
 //版本：V1.0
-//版权所有，盗版必究。
 //Copyright(C) 广州市星翼电子科技有限公司 2014-2024
 //All rights reserved									  
 ////////////////////////////////////////////////////////////////////////////////// 	
@@ -38,7 +37,7 @@ void write_prams()
   
   if(HAL_FLASHEx_Erase(&EraseInitStruct, &SectorError) != HAL_OK)//调用擦除函数
   { 
-    uprintf(CMD_USART,"erase flash fail!\r\n");
+    uprintf("erase flash fail!\r\n");
     HAL_FLASH_Lock();
     return ;
   }
@@ -48,10 +47,10 @@ void write_prams()
     temp=*((uint32_t *)(flash_data+i));//将flash_data[i]对应的float类型的4字节数据以无符号整型读出。
     //flash_data是flash_data[0]地址,flash_data+i是flash_data[i]地址,然后将flash_data[i]对应的float型转化为无符号整型,再取这个指针指向的地址里的值
     HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD,FLASH_SAVE_ADDR+i*4,temp);  //对flash烧写
-    uprintf(CMD_USART,"write Pram[%d]Ok!\r\n",i);
+    uprintf("write Pram[%d]Ok!\r\n",i);
   }
   HAL_FLASH_Lock();//锁住flash
-  uprintf(CMD_USART,"Write OK!\r\n");
+  uprintf("Write OK!\r\n");
 }
 
 void load_prams()
@@ -61,32 +60,10 @@ void load_prams()
   
   for(i=0;i<pram_num;++i){
     flash_data[i]=*((float *)(FLASH_SAVE_ADDR+i*4));
-    uprintf(CMD_USART,"flash_data[%d]=%lf\r\n",i,flash_data[i]);
-  }	
-  if(isnan(flash_data[0]))
-      flash_saved_x_red = -2.35;
-  else
-      flash_saved_x_red = flash_data[0];
-  if(isnan(flash_data[1]))
-      flash_saved_y_red = 4;
-  else
-      flash_saved_y_red = flash_data[1];
-  if(isnan(flash_data[2]))
-      flash_saved_x_blue = 2.24;
-  else
-      flash_saved_x_blue = flash_data[2];
-  if(isnan(flash_data[3]))
-      flash_saved_y_blue = 4.08;
-  else
-      flash_saved_y_blue = flash_data[3];
+    uprintf("flash_data[%d]=%lf\r\n",i,flash_data[i]);
+  }
   
-  uprintf(CMD_USART,"\r\n");
-}
-
-
-u32 STMFLASH_ReadWord(u32 faddr)
-{
-	return *(vu32*)faddr; 
+  uprintf("\r\n");
 }
 
 //获取某个地址所在的flash扇区

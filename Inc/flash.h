@@ -9,8 +9,8 @@
 #define u16 uint16_t
 #define u8 uint8_t
 #define vu32 volatile unsigned long
-#define vu8 volatile uint8_t
 #define vu16 volatile uint16_t
+#define vu8 volatile uint8_t
 u32 STMFLASH_ReadWord_Inc(u32* faddr);
 u16 STMFLASH_ReadHalfWord_Inc(u32* faddr);
 u8 STMFLASH_ReadByte_Inc(u32* faddr);

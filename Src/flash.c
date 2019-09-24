@@ -108,20 +108,3 @@ float STMFLASH_ReadFloat(u32 faddr)
 {
     return *(float*)faddr;
 }
-
-/**
-  * @brief  在相应的位置上写入一个float型的数据，需要把他当作一个u32型的数据存入
-  *			
-  * @note	当读取时请使用STMFLASH_ReadFloat或STMFLASH_ReadFloat_Inc
-  *
-  * @param  uint32_t Address: 数据的地址  
-  *          
-  * @param  float Data: 数据
-  *
-  * @retval FLASH_Status: flash的状态
-  */
-FLASH_Status FLASH_ProgramFloat(uint32_t Address, float Data)
-{
-	u32 * ptr = (u32 *) &Data;
-	return FLASH_ProgramWord(Address, *ptr);
-}
