@@ -24,6 +24,9 @@ CAN_RxHeaderTypeDef RxHeader;
 uint32_t TxMailbox;
 can_msg can_rx_data;
 can_msg can_tx_data;
+uint32_t std_id[] = {324, 325};
+//uint32_t ext_id[] = {};
+
 static can_msg rx_buffer = {0};
 static uint32_t rx_id = 0;
 
@@ -101,6 +104,9 @@ void HAL_CAN_RxFifo0FullCallback(CAN_HandleTypeDef *hcan) {
 
 void CAN_config(CAN_HandleTypeDef *hcan) {
     CAN_FilterTypeDef sFilterConfig;
+    int id_len;
+    id_len = sizeof(std_id)/sizeof(std_id[0]);
+    uint16_t mask, tmp,i;
 
     /* Configure the CAN Filter 
      bxCAN提供28个位宽可变/可配置的标识符过滤器组
@@ -109,14 +115,31 @@ void CAN_config(CAN_HandleTypeDef *hcan) {
     sFilterConfig.FilterBank = 0;
     sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
     sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+    sFilterConfig.FilterIdHigh = std_id[0]<< 5;
+    sFilterConfig.FilterIdLow = 0x0000;
+    sFilterConfig.FilterMaskIdHigh = (0x7ff<<5);
+    sFilterConfig.FilterMaskIdLow = (0x0000|0x02);
     /* CAN_FILTERSCALE_32BIT
-     FilterIdHight = StdId << 5 
-     FilterIdHight = (ExtId << 3)>>16 & 0xFFFF
+     FilterIdHigh = StdId << 5 
+     FilterIdHigh = (ExtId << 3)>>16 & 0xFFFF
      FIlterIdLow   = ((uint16_t)(ExtId <<3)) | CAN_ID_EXT;*/
+    /*
+    sFilterConfig.FilterIdHigh = id_len? (std_id[0]<<5):0x0000;
+    sFilterConfig.FilterIdLow = 0x0000;
+    mask = 0x7ff;
+    for (i=0; i<id_len; i++) {
+        tmp = ~(std_id[i]^std_id[0]);
+        mask &= tmp;
+    }
+    sFilterConfig.FilterMaskIdHigh = (mask<<5);
+    sFilterConfig.FilterMaskIdLow = (0x0000|0x02);
+    */
+    /*
     sFilterConfig.FilterIdHigh = 0x0000;
     sFilterConfig.FilterIdLow = 0x0000;
     sFilterConfig.FilterMaskIdHigh = 0x0000;
     sFilterConfig.FilterMaskIdLow = 0x0000;
+    */
     sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
     sFilterConfig.FilterActivation = ENABLE;
     sFilterConfig.SlaveStartFilterBank = 14;
@@ -149,6 +172,7 @@ void CAN_config(CAN_HandleTypeDef *hcan) {
     TxHeader.DLC = 8;
     TxHeader.TransmitGlobalTime = DISABLE;
 }
+
 
 static unsigned int hash_id(const void* id) {
     return *((unsigned int*)id);

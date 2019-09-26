@@ -74,7 +74,7 @@ void HAL_UART_IDLECallback(UART_HandleTypeDef *huart) {
         // temp = hdma_usart3_rx.Instance->CNDTR;
         // huart->hdmarx->XferCpltCallback(huart->hdmarx);
         // //调用DMA接受完毕后的回调函数，最主要的目的是要将串口的状态设置为Ready，否则无法开启下一次DMA
-        HAL_UART_DMAStop(&huart3);  //停止本次DMA
+        HAL_UART_DMAStop(&CMD_USART);  //停止本次DMA
 
         uint8_t *clr = DMAaRxBuffer-1;
         while(*(++clr) == '\0' && clr < DMAaRxBuffer+DMA_BUFFER_SIZE);
@@ -129,7 +129,6 @@ int cmd_exec(int argc,char *argv[]){
  * @return	None
  */
 void cmd_help_func(int argc,char *argv[]){
-    // FIXME: ZeroVoid	2019/09/23	 dma usage 输出不完整，调试输出没问题
     uprintf("help:\r\n");
     HashTable_map(cmd_table, _cmd_help, NULL);
 }
@@ -167,7 +166,6 @@ void uprintf(char *fmt, ...) {
     if (HAL_UART_Transmit_DMA(&CMD_USART, (uint8_t *)print_buffer, size) != HAL_OK) {
         HAL_Delay(10);
     }
-    // TODO:	ZeroVoid	due:10/7	优化输出，异步输出，可能纯在busy时再次调用，会被忽略，输出缺失
     while(CMD_USART.hdmatx->State != HAL_DMA_STATE_READY);
     //HAL_UART_Transmit(&CMD_USART, (uint8_t*)uart_buffer, size, 1000);
 }
