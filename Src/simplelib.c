@@ -11,6 +11,7 @@
 
 #include "simplelib.h"
 #include "simplelib_config.h"
+#include "flags.h"
 
 /**
  * @brief	初始化配置
@@ -34,5 +35,9 @@ void simplelib_run(void) {
     if (can_exc_callback_flag) {
         can_exc_callback();
         can_exc_callback_flag = 0;
+    }
+    if (send_wave_flag) {
+        send_wave(0,1,2,3);
+        HAL_Delay(10);
     }
 }
