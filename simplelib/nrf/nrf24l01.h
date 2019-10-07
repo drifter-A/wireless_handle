@@ -49,22 +49,31 @@ extern "C" {
  * NRF Data Type
  *******************************************************************************/
 /**
+ * @brief	NRF CRC encoding scheme value
+ * @note	REG_CONFIG CRCO 0-1bit 1-2bit
+ */
+typedef enum {
+	NRF_CRC_1B = 0,
+	NRF_CRC_2B,
+	NRF_CRC_DISABLED
+} NRF_CRC;
+
+/**
+ * @brief	NRF Power
+ * @note	not NRF RF Power
+ */
+typedef enum {
+	NRF_POWER_DOWN = 0,
+	NRF_POWER_UP = 2
+} NRF_POWER;
+
+/**
  * @brief	NRF Mode
  */
 typedef enum {
     NRF_PTX = 0,
     NRF_PRX
 } NRF_MODE;
-
-/**
- * @brief	NRF CRC encoding scheme value
- * @note	REG_CONFIG CRCO 0-1b 1-2b
- */
-typedef enum {
-	NRF_CRC_DISABLED = 0,
-	NRF_CRC_1B,
-	NRF_CRC_2B
-} NRF_CRC;
 
 /**
  * @brief	NRF Address width
@@ -111,12 +120,11 @@ typedef enum {
  * @brief	RF output power in TX mode
  */
 typedef enum {
-	NRF_POWER_M18DBM = 0,
-	NRF_POWER_M12DBM,
-	NRF_POWER_M6DBM,
-	NRF_POWER_0DBM,
-    NRF_POWER_OFF
-} NRF_POWER;
+	NRF_RF_POWER_M18DBM = 0,
+	NRF_RF_POWER_M12DBM,
+	NRF_RF_POWER_M6DBM,
+	NRF_RF_POWER_0DBM,
+} NRF_RF_POWER;
 
 /**
  * @brief	NRF pipe number
@@ -127,21 +135,23 @@ typedef enum {
 	NRF_PIPE_2,
 	NRF_PIPE_3,
 	NRF_PIPE_4,
-	NRF_PIPE_N_USED
+	NRF_PIPE_5
 } NRF_PIPE;
 
 /**
  * @brief	NRF config
- * @note	还没找到在哪里使用它
+ * @note	NRF 初始化使用
  */
 typedef struct {
 	NRF_SPEED speed;
 	NRF_POWER power;
+	NRF_RF_POWER rf_power;
 	NRF_CRC crc_type;
 	NRF_RETR_DELAY retry_delay;
-	unsigned char retries;
-	unsigned char channel;
-	unsigned char address[3];
+	uint8_t retries;
+	uint8_t channel;
+	uint8_t address[5];
+	NRF_AW addr_len;
 	bool send_crc_ack;
 } NRF_ConfigTypeDef;
 
@@ -154,6 +164,12 @@ typedef struct {
 	NRF_MODE mode;
 	uint8_t *tx_data;
 } NRF_Handle;
+
+/*******************************************************************************
+ * NRF Val
+ *******************************************************************************/
+extern uint8_t nrf_rx_data[32];
+extern uint8_t nrf_tx_data[32];
 
 
 /*******************************************************************************
@@ -248,6 +264,11 @@ typedef struct {
 #define NRF_FIFO_RX_FULL					(1<<1) // 1:full
 #define NRF_FIFO_RX_EMPTY					(1<<0) // 1:empty
 
+/* Observe Register Masks -----------------------------------------------------*/
+#define NRF_PLOS_CNT					 	(0xF0) // Count lost packets
+#define NRF_PLOS_CNT_POS					(4)   
+#define NRF_ARC_CNT							(0x0F) // Count retransmitted packets
+
 /* Feature Register Masks -----------------------------------------------------*/
 #define NRF_FEATURE_DPL						(1<<2) // Enable Dynamic Payload Length
 #define NRF_FEATURE_ACK_PAYLOAD				(1<<1) // Enable Payload with ACK
@@ -263,35 +284,86 @@ typedef struct {
 #define NRF_STATUS_GET_TX_DS(s)				((s & NRF_STATUS_TX_DS) >> 5)
 #define NRF_STATUS_GET_RX_DR(s)				((s & NRF_STATUS_RX_DR) >> 6)
 
+/*******************************************************************************
+ * NRF Mid Functions
+ *******************************************************************************/
+void nrf_init(NRF_ConfigTypeDef *config);
+void nrf_stop(void);
+uint8_t nrf_send_data(uint8_t *data, int len, bool ack);
+uint8_t nrf_read_rx_data(uint8_t *data, uint8_t *len, NRF_PIPE *pipe); 
+void nrf_set_tx_addr(const uint8_t *addr, uint8_t addr_len);
+void nrf_set_rx_addr(NRF_PIPE pipe, const uint8_t *addr, uint8_t addr_len);
+__weak void nrf_receive_callback(uint8_t *data, int len);
+__weak void nrf_send_callback(void);
 
 /*******************************************************************************
- * NRF Functions
+ * NRF Driver Functions
  *******************************************************************************/
-void nrf_init(void);
-void nrf_stop(void);
-void nrf_set_speed(NRF_SPEED speed);
-void nrf_set_power(NRF_POWER power);
-void nrf_set_address_width(NRF_AW aw);
-void nrf_set_crc_type(NRF_CRC crc_type);
-void nrf_set_retr_retries(int retries);
-void nrf_set_retr_delay(NRF_RETR_DELAY delay);
-void nrf_set_rx_addr(int pipe, const char *address, int addr_len);
-void nrf_set_tx_addr(const char *address, int addr_len);
-void nrf_write_tx_payload(const char *data, int length);
-void nrf_write_tx_payload_no_ack(const char *data, int length);
-void nrf_write_ack_payload(int pipe, const char *data, int length);
-void nrf_read_rx_payload(char *data, int length);
-void nrf_set_frequency(int freq);
-int nrf_get_frequency(void);
-int nrf_get_address_width(void);
-void nrf_power_up(void);
-void nrf_power_down(void);
-void nrf_mode_tx(void);
-void nrf_mode_rx(void);
-void nrf_enable_pipe_autoack(int pipes);
-void nrf_enable_pipe_address(int pipes);
-void nrf_enable_pipe_dlp(int pipes);
-void nrf_enable_features(int features);
+/* 0x00 Configuration Register -----------------------------------------------------*/
+// TODO: ZeroVoid	due:10/10	Done Interrupt Choose
+void _nrf_enable_irq(uint8_t irq);
+void _nrf_set_crc_type(NRF_CRC crc_type);
+inline void _nrf_set_power(NRF_POWER power);
+void _nrf_set_mode(NRF_MODE mode);
+
+/* 0x01-x03 -----------------------------------------------------*/
+void _nrf_enable_pipe_autoack(uint8_t pipes);
+void _nrf_enable_pipe_address(uint8_t pipes);
+void _nrf_set_address_width(NRF_AW aw);
+NRF_AW _nrf_get_address_width(void);
+
+/* 0x04 -----------------------------------------------------*/
+void _nrf_set_retr_delay(NRF_RETR_DELAY delay);
+void _nrf_set_retr_retries(uint8_t retries);
+
+/* 0x05 -----------------------------------------------------*/
+void _nrf_set_frequency(int freq);
+int _nrf_get_frequency(void);
+
+/* 0x06 -----------------------------------------------------*/
+void _nrf_set_speed(NRF_SPEED speed);
+void _nrf_set_rf_power(NRF_RF_POWER power);
+
+/* 0x07 -----------------------------------------------------*/
+uint8_t _nrf_get_status(void);
+void _nrf_clear_irq(void);
+void _nrf_clear_rx_irq(void);
+void _nrf_clear_tx_irq(void);
+void _nrf_clear_maxrt_irq(void);
+
+/* 0x08 Transmit Observe Register -----------------------------------------------------*/
+uint8_t _nrf_get_plos_cnt(void);
+uint8_t _nrf_get_arc_cnt(void);
+
+/* 0x09 -----------------------------------------------------*/
+uint8_t _nrf_rx_power_detect(void);
+
+/* 0x0A-0x0F -----------------------------------------------------*/
+void _nrf_set_rx_addr(NRF_PIPE pipe, const uint8_t *address, uint8_t addr_len);
+
+/* 0x10 -----------------------------------------------------*/
+void _nrf_set_tx_addr(const uint8_t *address, int addr_len);
+
+/* 0x11-0x16 -----------------------------------------------------*/
+uint8_t _nrf_get_payload_width(void);
+uint8_t _nrf_get_payload_width_pipe(NRF_PIPE pipe);
+
+/* 0x17 -----------------------------------------------------*/
+uint8_t _nrf_get_fifo_status(void);
+
+void _nrf_write_tx_payload(const uint8_t *data, uint8_t length);
+void _nrf_write_tx_payload_no_ack(const uint8_t *data, uint8_t length);
+void _nrf_write_ack_payload(NRF_PIPE pipe, const uint8_t *data, uint8_t length);
+void _nrf_read_rx_payload(uint8_t *data, uint8_t length);
+
+/* 0x1C-0x1D -----------------------------------------------------*/
+void _nrf_enable_pipe_dlp(uint8_t pipes);
+void _nrf_enable_features(uint8_t features);
+
+/* Commands -----------------------------------------------------*/
+void _nrf_flush_tx(void);
+void _nrf_flush_rx(void);
+void _nrf_flush_all(void);
 
 
 #ifdef __cplusplus
