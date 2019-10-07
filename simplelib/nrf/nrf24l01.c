@@ -1,11 +1,12 @@
 /*******************************************************************************
  * Copyright:		BUPT
  * File Name:		nrf24l01.c
- * Description:		NRF Driver.Ref benjaming
+ * Description:		NRF Driver. Ref benjamin bldc code.
  * Author:			ZeroVoid
- * Version:			0.1
- * Data:			2019/10/02 Wed 16:28
+ * Version:			0.2
+ * Data:			2019/10/07 Mon 18:33
  *******************************************************************************/
+
 #include "nrf24l01.h"
 #include <string.h>
 
@@ -152,8 +153,9 @@ uint8_t nrf_send_data(uint8_t *data, int len, bool ack) {
 	if (!tx_pipe0_addr_eq && ack) {
 		_nrf_set_rx_addr(0, nrf_rx_addr[0], nrf_addr_width);
 	}
-
 	rf_mode_rx();
+    nrf_send_callback();
+
 	return retval;
 }
 
@@ -191,6 +193,8 @@ uint8_t nrf_read_rx_data(uint8_t *data, uint8_t *len, NRF_PIPE *pipe) {
 			retval = -2;
 		}
     }
+
+    nrf_receive_callback(data, *len);
 	return retval;
 }
 
@@ -252,7 +256,7 @@ void _nrf_set_crc_type(NRF_CRC crc_type) {
  * @brief   设置NRF是否工作
  * @param	power enum: NRF_POWER_UP or NRF_POWER_DOWN
  */
-inline void _nrf_set_power(NRF_POWER power) {
+void _nrf_set_power(NRF_POWER power) {
     uint8_t config = nrf_read_reg_byte(NRF_REG_CONFIG);
     if ((config & NRF_CONFIG_PWR_UP) != power) {
         if (power) {

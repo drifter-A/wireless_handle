@@ -24,6 +24,7 @@ extern "C" {
 #ifdef STM32F407xx 
 #include "gpio.h"
 #include "spi.h"
+
 #define NRF_SPI_Handle                  hspi3
 #define NRF_SPI_CSN_PIN                 GPIO_PIN_15
 #define NRF_SPI_CSN_GPIO_PORT           GPIOA

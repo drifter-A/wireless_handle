@@ -303,7 +303,7 @@ __weak void nrf_send_callback(void);
 // TODO: ZeroVoid	due:10/10	Done Interrupt Choose
 void _nrf_enable_irq(uint8_t irq);
 void _nrf_set_crc_type(NRF_CRC crc_type);
-inline void _nrf_set_power(NRF_POWER power);
+void _nrf_set_power(NRF_POWER power);
 void _nrf_set_mode(NRF_MODE mode);
 
 /* 0x01-x03 -----------------------------------------------------*/
