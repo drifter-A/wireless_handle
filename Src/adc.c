@@ -160,6 +160,10 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* adcHandle)
 
 /* USER CODE BEGIN 1 */
 
+void  HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)																			//4
+{
+  //DMA_Transfer_Complete_Count++; 
+}
 /* USER CODE END 1 */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

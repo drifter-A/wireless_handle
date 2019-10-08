@@ -30,6 +30,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "adc_func.h"
 #include "nrf24l01.h"
 
 /* USER CODE END Includes */
@@ -63,7 +64,7 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+int main_flag = 0;
 /* USER CODE END 0 */
 
 /**
@@ -102,7 +103,8 @@ int main(void)
   MX_FSMC_Init();
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
-
+  main_flag = 1;
+  nrf_init(NULL);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -112,6 +114,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+      adc_exe();
+      gpio_delayed_button();
   }
   /* USER CODE END 3 */
 }

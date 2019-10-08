@@ -34,9 +34,6 @@ extern "C" {
 #define NRF_SPI_CE_GPIO_PORT            GPIOB
 #endif // STM32F407xx
 
-#ifdef STM32F103xx
-
-#endif // STM32F103xx
 #endif // SL_NRF
 
 #ifdef __cplusplus

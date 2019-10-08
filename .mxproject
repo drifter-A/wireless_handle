@@ -26,9 +26,9 @@ SourceFiles#8=/home/zerovoid/Workspace/Robocon/Code/wireless_handle_v0.3/Core/Sr
 SourceFiles#9=/home/zerovoid/Workspace/Robocon/Code/wireless_handle_v0.3/Core/Src/main.c
 SourceFolderListSize=1
 SourcePath#0=/home/zerovoid/Workspace/Robocon/Code/wireless_handle_v0.3/Core/Src
-HeaderPath=/home/zerovoid/Workspace/Robocon/Code/wireless_handle_v0.3/Inc
+HeaderPath=/home/zerovoid/Workspace/Robocon/Code/zv_code/wireless_handle_v0.3/Inc
 HeaderFiles=gpio.h;adc.h;can.h;dma.h;fsmc.h;spi.h;usart.h;stm32f4xx_it.h;stm32f4xx_hal_conf.h;main.h;
-SourcePath=/home/zerovoid/Workspace/Robocon/Code/wireless_handle_v0.3/Src
+SourcePath=/home/zerovoid/Workspace/Robocon/Code/zv_code/wireless_handle_v0.3/Src
 SourceFiles=gpio.c;adc.c;can.c;dma.c;fsmc.c;spi.c;usart.c;stm32f4xx_it.c;stm32f4xx_hal_msp.c;main.c;
 
 [PreviousLibFiles]

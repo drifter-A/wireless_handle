@@ -21,7 +21,8 @@
 #include "usart.h"
 
 /* USER CODE BEGIN 0 */
-
+#include "string.h"
+char buffer_rx_temp;
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart1;
@@ -100,7 +101,42 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 } 
 
 /* USER CODE BEGIN 1 */
+char uart_buffer[100 + 1];
+void uprintf(char *fmt, ...)
+{
+    int size;
+    
+    va_list arg_ptr;
+    
+    va_start(arg_ptr, fmt);  
+    
+    size=vsnprintf(uart_buffer, 100 + 1, fmt, arg_ptr);
+    va_end(arg_ptr);
+    HAL_UART_Transmit(&huart1,(uint8_t *)uart_buffer,size,1000);
+}
 
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{ 
+    if(huart->Instance==USART1){ 
+       
+    }
+    HAL_UART_Receive_IT(&huart1,(uint8_t *)&buffer_rx_temp,1);  
+}
+/*
+//ʾ����
+char s[22]={'b','y',16,6};
+void send_wave(float arg1,float arg2,float arg3,float arg4)
+{
+    s[2]=16;  //length
+    s[3]=6;   //type
+    s[20]='\r';
+    s[21]='\n';
+    memcpy(s+4,&arg1,sizeof(arg1));
+    memcpy(s+8,&arg2,sizeof(arg1));
+    memcpy(s+12,&arg3,sizeof(arg1));
+    memcpy(s+16,&arg4,sizeof(arg1));
+    HAL_UART_Transmit(&huart1,(uint8_t *)s, 22,1000);   
+}*/
 /* USER CODE END 1 */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
