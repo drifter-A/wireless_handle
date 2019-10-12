@@ -12,6 +12,8 @@
 #include "simplelib.h"
 #include "flags.h"
 
+asm(".global _printf_float");
+
 /**
  * @brief	初始化配置
  * @param	cmd_usart   指令通信usart句柄
