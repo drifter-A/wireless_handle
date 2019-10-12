@@ -41,6 +41,7 @@ void MX_USART1_UART_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 extern void uprintf(char *fmt, ...);
+void uprint_(char *fmt, ...);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

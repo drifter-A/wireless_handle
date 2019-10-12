@@ -3,7 +3,7 @@
 #include "simplelib_config.h"
 
 void can_func_init() {
-    #ifdef DEBUG
+    #ifdef SL_DEBUG
     can_callback_add(1, can_suc_rx);
     can_callback_add(325, can_show_button);
     can_callback_add(324, can_show_rocker);

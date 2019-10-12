@@ -5,6 +5,7 @@
  * Author:			ZeroVoid
  * Version:			0.1
  * Data:			2019/09/29 Sun 22:06
+ * Note:			HAL stm32F4 1.24.1 版本兼容
  *******************************************************************************/
 #ifndef __NRF24L01_H
 #define __NRF24L01_H
@@ -150,6 +151,7 @@ typedef struct {
 	NRF_RETR_DELAY retry_delay;
 	uint8_t retries;
 	uint8_t channel;
+	uint8_t pipes;
 	uint8_t address[5];
 	NRF_AW addr_len;
 	bool send_crc_ack;
@@ -289,10 +291,10 @@ extern uint8_t nrf_tx_data[32];
  *******************************************************************************/
 void nrf_init(NRF_ConfigTypeDef *config);
 void nrf_stop(void);
-uint8_t nrf_send_data(uint8_t *data, int len, bool ack);
+uint8_t nrf_send_data(uint8_t *data, int len);
 uint8_t nrf_read_rx_data(uint8_t *data, uint8_t *len, NRF_PIPE *pipe); 
-void nrf_set_tx_addr(const uint8_t *addr, uint8_t addr_len);
-void nrf_set_rx_addr(NRF_PIPE pipe, const uint8_t *addr, uint8_t addr_len);
+void nrf_set_tx_addr(uint8_t *addr, uint8_t addr_len);
+void nrf_set_rx_addr(NRF_PIPE pipe, uint8_t *addr, uint8_t addr_len);
 __weak void nrf_receive_callback(uint8_t *data, int len);
 __weak void nrf_send_callback(void);
 
@@ -339,10 +341,10 @@ uint8_t _nrf_get_arc_cnt(void);
 uint8_t _nrf_rx_power_detect(void);
 
 /* 0x0A-0x0F -----------------------------------------------------*/
-void _nrf_set_rx_addr(NRF_PIPE pipe, const uint8_t *address, uint8_t addr_len);
+void _nrf_set_rx_addr(NRF_PIPE pipe, uint8_t *address, NRF_AW aw);
 
 /* 0x10 -----------------------------------------------------*/
-void _nrf_set_tx_addr(const uint8_t *address, int addr_len);
+void _nrf_set_tx_addr(uint8_t *address, NRF_AW aw);
 
 /* 0x11-0x16 -----------------------------------------------------*/
 uint8_t _nrf_get_payload_width(void);
@@ -351,9 +353,9 @@ uint8_t _nrf_get_payload_width_pipe(NRF_PIPE pipe);
 /* 0x17 -----------------------------------------------------*/
 uint8_t _nrf_get_fifo_status(void);
 
-void _nrf_write_tx_payload(const uint8_t *data, uint8_t length);
-void _nrf_write_tx_payload_no_ack(const uint8_t *data, uint8_t length);
-void _nrf_write_ack_payload(NRF_PIPE pipe, const uint8_t *data, uint8_t length);
+void _nrf_write_tx_payload(uint8_t *data, uint8_t length);
+void _nrf_write_tx_payload_no_ack(uint8_t *data, uint8_t length);
+void _nrf_write_ack_payload(NRF_PIPE pipe, uint8_t *data, uint8_t length);
 void _nrf_read_rx_payload(uint8_t *data, uint8_t length);
 
 /* 0x1C-0x1D -----------------------------------------------------*/

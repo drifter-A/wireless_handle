@@ -32,6 +32,7 @@
 /* USER CODE BEGIN Includes */
 #include "adc_func.h"
 #include "nrf24l01.h"
+#include "simplelib.h"
 
 /* USER CODE END Includes */
 
@@ -65,6 +66,8 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 int main_flag = 0;
+uint16_t time_1ms_cnt;
+uint8_t time_5ms_flag;
 /* USER CODE END 0 */
 
 /**
@@ -98,12 +101,13 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART1_UART_Init();
-  MX_CAN1_Init();
+  //MX_CAN1_Init();
   MX_ADC1_Init();
   MX_FSMC_Init();
   MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
   main_flag = 1;
+  simplelib_init(&huart1, &hcan1);
   nrf_init(NULL);
   /* USER CODE END 2 */
 
@@ -114,6 +118,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+      //simplelib_run();
       adc_exe();
       gpio_delayed_button();
   }
@@ -161,10 +166,28 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
+  /**Configure the Systick interrupt time 
+    */
+  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
+
+    /**Configure the Systick 
+    */
+  HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
+
+  /* SysTick_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_IncTick() {
+  time_1ms_cnt++;
+  if(time_1ms_cnt%5==0){
+    time_5ms_flag=1;
+    adc_flag = 1;
+  }
+}
 /* USER CODE END 4 */
 
 /**

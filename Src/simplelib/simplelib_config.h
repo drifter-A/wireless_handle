@@ -25,6 +25,7 @@ extern "C" {
 #include "gpio.h"
 #include "spi.h"
 
+#define NRF_ADDR_COF					1 // 变化参数
 #define NRF_SPI_Handle                  hspi3
 #define NRF_SPI_CSN_PIN                 GPIO_PIN_15
 #define NRF_SPI_CSN_GPIO_PORT           GPIOA

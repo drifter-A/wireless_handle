@@ -47,7 +47,7 @@ void adc_exe()
         //can_send_msg(324,adc_data,8);//ҡ��id324
         memcpy(temp,(uint16_t *)&adc_data,8);
         //NRF_Install_TX_Data(temp, 10);
-        nrf_send_data(temp, 10, true);
+        nrf_send_data(temp, 10);
         //nrf_send(adc_data,7);//nrf��һλ��R
     adc_flag = 0;
 }

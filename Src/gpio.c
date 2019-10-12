@@ -159,7 +159,8 @@ void gpio_delayed_button_ctrl(GPIO_PinState* last, GPIO_TypeDef* GPIOx, uint16_t
         memcpy(temp + 8, &button_state, 2);
         //NRF_Install_TX_Data(temp, 10);
         //NRF_Send_Message_IT();
-        nrf_send_data(temp, 10, true);
+        nrf_send_data(temp, 10);
+        //nrf_send_data(temp, 10, false);
         button_state = 0;
     } else if (*last == GPIO_PIN_SET && HAL_GPIO_ReadPin(GPIOx, GPIO_Pin) == GPIO_PIN_RESET) {
         /*
@@ -175,7 +176,8 @@ void gpio_delayed_button_ctrl(GPIO_PinState* last, GPIO_TypeDef* GPIOx, uint16_t
         memcpy(temp + 8, &button_state, 2);
         //NRF_Install_TX_Data(temp, 10);
         //NRF_Send_Message_IT();
-        nrf_send_data(temp, 10, true);
+        nrf_send_data(temp, 10);
+        //nrf_send_data(temp, 10, false);
         button_state = 0;
     }
 }

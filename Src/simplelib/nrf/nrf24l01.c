@@ -5,11 +5,17 @@
  * Author:			ZeroVoid
  * Version:			0.2
  * Data:			2019/10/07 Mon 18:33
+ * Note:			HAL stm32F4 1.24.1 版本兼容
  *******************************************************************************/
 
 #include "nrf24l01.h"
 #include <string.h>
 #include "assert.h"
+
+#ifdef SL_DEBUG
+#include "can_utils.h"
+#include "usart.h"
+#endif // SL_DEBUG
 
 /*******************************************************************************
  * NRF Private Macro
@@ -22,6 +28,8 @@
 #define NRF_SPI_TransmitReceive(pTxData, pRxData, len)   HAL_SPI_TransmitReceive(&NRF_SPI_Handle, pTxData, pRxData, len, 50)
 #define NRF_SPI_Read(pRxData, len) HAL_SPI_Receive(&NRF_SPI_Handle, pRxData, len, 50)
 #define NRF_SPI_Write(pTxData, len) HAL_SPI_Transmit(&NRF_SPI_Handle, pTxData, len, 50)
+#define NRF_CE_ENABLE() HAL_GPIO_WritePin(NRF_SPI_CE_GPIO_PORT, NRF_SPI_CE_PIN, 1)
+#define NRF_CE_DISABLE() HAL_GPIO_WritePin(NRF_SPI_CE_GPIO_PORT, NRF_SPI_CE_PIN, 0)
 
 /*******************************************************************************
  * NRF Private Function Declaration
@@ -31,6 +39,7 @@ static uint8_t nrf_write_reg(uint8_t reg, uint8_t *data, uint8_t len);
 static uint8_t nrf_write_reg_byte(uint8_t reg, uint8_t value);
 static void nrf_read_reg(uint8_t reg, uint8_t *data, uint8_t len);
 static uint8_t nrf_read_reg_byte(uint8_t reg);
+static uint8_t nrf_test(void);
 
 /* NRF SPI Communication Utils -----------------------------------------------------*/
 static void nrf_spi_start(void);
@@ -42,6 +51,9 @@ static void nrf_spi_delay(void);
  *******************************************************************************/
 uint8_t nrf_rx_data[32];
 uint8_t nrf_tx_data[32];
+#ifdef SL_DEBUG
+can_msg msg;
+#endif // SL_DEBUG
 
 /*******************************************************************************
  * NRF Private Val
@@ -52,10 +64,11 @@ static NRF_ConfigTypeDef nrf_config = {
     power : NRF_POWER_UP,
     rf_power : NRF_RF_POWER_0DBM,
     crc_type : NRF_CRC_2B,
-    retry_delay : NRF_RETR_DELAY_500US,
-    retries : 0,
+    retry_delay : NRF_RETR_DELAY_1000US,
+    retries : 2,
     channel : 0,
-    address : {0x10, 0x11, 0x12, 0x11, 0x10},
+	pipes : 0x1,
+    address : {0x10*NRF_ADDR_COF, 0x11*NRF_ADDR_COF, 0x12*NRF_ADDR_COF, 0x11*NRF_ADDR_COF, 0x10*NRF_ADDR_COF},
     addr_len : NRF_AW_5,
     send_crc_ack : true
 };
@@ -64,6 +77,7 @@ static uint8_t nrf_tx_addr[5];
 static uint8_t nrf_rx_addr[6][5];
 static bool nrf_rx_addr_set[6];
 static bool tx_pipe0_addr_eq;
+static uint8_t temp;
 
 /*******************************************************************************
  * NRF Mid Functions
@@ -74,41 +88,47 @@ static bool tx_pipe0_addr_eq;
  */
 void nrf_init(NRF_ConfigTypeDef *config) {
     _nrf_set_power(NRF_POWER_DOWN);
+	//_nrf_set_power(NRF_POWER_UP);
+	if (nrf_test()) {
+		return;
+	}
     // config 为NULL 则使用默认config
     if (config != NULL) {
         nrf_config = *config;
     }
     nrf_addr_width = nrf_config.addr_len;
 
-	nrf_write_reg_byte(NRF_REG_EN_RXADDR, 0);
-	nrf_write_reg_byte(NRF_REG_DYNPD, 0);
-
 	_nrf_set_crc_type(nrf_config.crc_type);
-	_nrf_set_retr_retries(nrf_config.retries);
 	_nrf_set_retr_delay(nrf_config.retry_delay);
-	_nrf_set_power(nrf_config.power);
+	_nrf_set_retr_retries(nrf_config.retries);
+	_nrf_set_rf_power(nrf_config.rf_power);
+	_nrf_set_frequency(2400 + nrf_config.channel);
 	_nrf_set_speed(nrf_config.speed);
 	_nrf_set_address_width(nrf_config.addr_len);
-	_nrf_set_frequency(2400 + nrf_config.channel);
-	_nrf_enable_features(NRF_FEATURE_DPL | NRF_FEATURE_DYN_ACK);
-
 	_nrf_enable_pipe_autoack(NRF_MASK_PIPE0);
-	_nrf_enable_pipe_address(NRF_MASK_PIPE0);
-	_nrf_enable_pipe_dlp(NRF_MASK_PIPE0);
+	_nrf_enable_features(NRF_FEATURE_ACK_PAYLOAD | NRF_FEATURE_DPL);
+	//nrf_write_reg_byte(NRF_REG_RX_PW_P0, 10);
+
+	_nrf_enable_pipe_address(nrf_config.pipes);
+	_nrf_enable_pipe_dlp(nrf_config.pipes);
 
 	memcpy(nrf_tx_addr, nrf_config.address, nrf_config.addr_len + 2);
 	memcpy(nrf_rx_addr[0], nrf_config.address, nrf_config.addr_len + 2);
 	tx_pipe0_addr_eq = true;
 
 	_nrf_set_tx_addr(nrf_tx_addr, nrf_addr_width);
-	_nrf_set_rx_addr(0, nrf_rx_addr[0], nrf_addr_width);
+	_nrf_set_rx_addr(NRF_PIPE_0, nrf_rx_addr[NRF_PIPE_0], nrf_addr_width);
+	_nrf_set_mode(NRF_PRX);
 
 	if (nrf_config.power != NRF_POWER_DOWN) {
         _nrf_set_power(NRF_POWER_UP);
 	}
+
     _nrf_flush_all();
     _nrf_clear_irq();
-
+	#ifdef SL_DEBUG
+	uprintf_("nrf init ok\r\n");
+	#endif
 }
 
 void nrf_stop(void) {
@@ -119,46 +139,55 @@ void nrf_stop(void) {
  * @brief	Set Tx mode, send data, wait result, Set Rx mode
  * @param   data    Data to be sent
  * @param   len     Length of the data
- * @param   ack     Whether use the ack feature
  * @return	0       Send success
  * @return  1       Send failed after retries
  */
-uint8_t nrf_send_data(uint8_t *data, int len, bool ack) {
+uint8_t nrf_send_data(uint8_t *data, int len) {
+    uint8_t status;
 	uint8_t retval = 0;
 
+	#ifdef SL_DEBUG
+	uprintf_("before send\r\n");
+	uint8_t conf = nrf_read_reg_byte(NRF_REG_CONFIG);
+	uprintf_("config %x\r\n", conf);
+	#endif // SL_DEBUG
 	_nrf_set_mode(NRF_PTX);
+	nrf_spi_delay();
 	_nrf_clear_irq();
 	_nrf_flush_all();
 
 	// Pipe0-address and tx-address must be equal for ack to work.
-	if (!tx_pipe0_addr_eq && ack) {
+	if (!tx_pipe0_addr_eq && nrf_config.send_crc_ack) {
 		_nrf_set_rx_addr(0, nrf_tx_addr, nrf_addr_width);
 	}
 
-	if (ack) {
+	if (nrf_config.send_crc_ack) {
 		_nrf_write_tx_payload(data, len);
 	} else {
 		_nrf_write_tx_payload_no_ack(data, len);
 	}
 
-    uint8_t status;
+	NRF_CE_ENABLE();
     do
     {
+		//HAL_Delay(20);
         status = _nrf_get_status();
-		uint8_t temp = _nrf_get_arc_cnt();
-		if (temp == 1) {
-			break;
-		}
+		#ifdef SL_DEBUG
+		conf = nrf_read_reg_byte(NRF_REG_CONFIG);
+		uprintf_("status %x\r\nconfig %x\r\n", status, conf);
+		#endif // SL_DEBUG
         if (NRF_STATUS_GET_MAX_RT(status)) {
+			_nrf_clear_maxrt_irq();
             retval = 1;
             break;
         }
-    } while ( !NRF_STATUS_GET_TX_DS(status) );
+    } while ( NRF_STATUS_GET_TX_DS(status) == 0);
     
 	// Restore pipe0 address
-	if (!tx_pipe0_addr_eq && ack) {
+	if (!tx_pipe0_addr_eq && nrf_config.send_crc_ack) {
 		_nrf_set_rx_addr(0, nrf_rx_addr[0], nrf_addr_width);
 	}
+	NRF_CE_DISABLE();
 	_nrf_set_mode(NRF_PRX);
     nrf_send_callback();
 
@@ -179,6 +208,7 @@ uint8_t nrf_read_rx_data(uint8_t *data, uint8_t *len, NRF_PIPE *pipe) {
 	int status = _nrf_get_status();
 	int pipe_n = NRF_STATUS_GET_RX_P_NO(status);
 
+	NRF_CE_ENABLE();
 	if (pipe_n != NRF_RX_FIFO_EMPTY) {
 		*len = _nrf_get_payload_width();
 		if (pipe) {
@@ -200,18 +230,19 @@ uint8_t nrf_read_rx_data(uint8_t *data, uint8_t *len, NRF_PIPE *pipe) {
 		}
     }
 
+	NRF_CE_DISABLE();
     nrf_receive_callback(data, *len);
 	return retval;
 }
 
-void nrf_set_tx_addr(const uint8_t *addr, uint8_t addr_len) {
+void nrf_set_tx_addr(uint8_t *addr, uint8_t addr_len) {
     memcpy(nrf_tx_addr, addr, addr_len);
 	nrf_addr_width = addr_len;
 	tx_pipe0_addr_eq = memcmp(nrf_rx_addr[0], nrf_tx_addr, nrf_addr_width) == 0;
 	_nrf_set_tx_addr(nrf_tx_addr, nrf_addr_width);
 }
 
-void nrf_set_rx_addr(NRF_PIPE pipe, const uint8_t *addr, uint8_t addr_len) {
+void nrf_set_rx_addr(NRF_PIPE pipe, uint8_t *addr, uint8_t addr_len) {
     memcpy(nrf_rx_addr[pipe], addr, addr_len);
 	nrf_addr_width = addr_len;
 	tx_pipe0_addr_eq = memcmp(nrf_rx_addr[0], nrf_tx_addr, nrf_addr_width) == 0;
@@ -267,7 +298,7 @@ void _nrf_set_crc_type(NRF_CRC crc_type) {
 void _nrf_set_power(NRF_POWER power) {
     uint8_t config = nrf_read_reg_byte(NRF_REG_CONFIG);
     if ((config & NRF_CONFIG_PWR_UP) != power) {
-        if (power) {
+        if (power == NRF_POWER_UP) {
             config |= (NRF_CONFIG_PWR_UP);
         } else {
             config &= ~(NRF_CONFIG_PWR_UP);
@@ -394,7 +425,7 @@ void _nrf_set_rf_power(NRF_RF_POWER power) {
 	// In case this is a SI24R1 chip and the highest power is requested, set
 	// the first bit to get 7dBm output.
 	if (power == NRF_RF_POWER_0DBM) {
-		reg_new |= 1;
+		//reg_new |= 1;
 	}
 
 	if (reg_old != reg_new) {
@@ -404,7 +435,7 @@ void _nrf_set_rf_power(NRF_RF_POWER power) {
 
 /* 0x07 -----------------------------------------------------*/
 uint8_t _nrf_get_status(void) {
-    return nrf_read_reg_byte(NRF_REG_CONFIG);
+    return nrf_read_reg_byte(NRF_REG_STATUS);
 }
 
 void _nrf_clear_irq(void) {
@@ -440,13 +471,13 @@ uint8_t _nrf_rx_power_detect(void) {
 }
 
 /* 0x0A-0x0F -----------------------------------------------------*/
-void _nrf_set_rx_addr(NRF_PIPE pipe, const uint8_t *address, uint8_t addr_len) {
-    nrf_write_reg(NRF_REG_RX_ADDR_P0 + pipe, address, addr_len);
+void _nrf_set_rx_addr(NRF_PIPE pipe, uint8_t *address, NRF_AW aw) {
+    nrf_write_reg(NRF_REG_RX_ADDR_P0 + pipe, address, aw + 2);
 }
 
 /* 0x10 -----------------------------------------------------*/
-void _nrf_set_tx_addr(const uint8_t *address, int addr_len) {
-    nrf_write_reg(NRF_REG_TX_ADDR, address, addr_len);
+void _nrf_set_tx_addr(uint8_t *address, NRF_AW aw) {
+    nrf_write_reg(NRF_REG_TX_ADDR, address, aw + 2);
 }
 
 /* 0x11-0x16 -----------------------------------------------------*/
@@ -454,8 +485,8 @@ uint8_t _nrf_get_payload_width(void) {
     uint8_t w;
 	uint8_t cmd = NRF_CMD_READ_RX_PAYLOAD_WIDTH;
     nrf_spi_start();
-    //NRF_SPI_TransmitReceive(&cmd, 0, 1);
-	NRF_SPI_Write(&cmd, 1);
+    NRF_SPI_TransmitReceive(&cmd, &temp, 1);
+	//NRF_SPI_Write(&cmd, 1);
     NRF_SPI_Read(&w, 1);
     nrf_spi_end();
 	return w;
@@ -470,29 +501,29 @@ uint8_t _nrf_get_fifo_status(void) {
     return nrf_read_reg_byte(NRF_REG_FIFO_STATUS);
 }
 
-void _nrf_write_tx_payload(const uint8_t *data, uint8_t length) {
+void _nrf_write_tx_payload(uint8_t *data, uint8_t length) {
     uint8_t cmd = NRF_CMD_WRITE_TX_PAYLOAD;
     nrf_spi_start();
-    //NRF_SPI_TransmitReceive(&cmd, 0, 1);
-	NRF_SPI_Write(&cmd, 1);
+    NRF_SPI_TransmitReceive(&cmd, &temp, 1);
+	//NRF_SPI_Write(&cmd, 1);
     NRF_SPI_Write(data, length);
     nrf_spi_end();
 }
 
-void _nrf_write_tx_payload_no_ack(const uint8_t *data, uint8_t length) {
+void _nrf_write_tx_payload_no_ack(uint8_t *data, uint8_t length) {
     uint8_t cmd = NRF_CMD_WRITE_TX_PAYLOAD_NO_ACK;
     nrf_spi_start();
-    //NRF_SPI_TransmitReceive(&cmd, 0, 1);
-	NRF_SPI_Write(&cmd, 1);
+    NRF_SPI_TransmitReceive(&cmd, &temp, 1);
+	//NRF_SPI_Write(&cmd, 1);
     NRF_SPI_Write(data, length);
     nrf_spi_end();
 }
 
-void _nrf_write_ack_payload(NRF_PIPE pipe, const uint8_t *data, uint8_t length) {
+void _nrf_write_ack_payload(NRF_PIPE pipe, uint8_t *data, uint8_t length) {
     uint8_t cmd = NRF_CMD_WRITE_ACK_PAYLOAD | (pipe & 0x7);
     nrf_spi_start();
-    //NRF_SPI_TransmitReceive(&cmd, 0, 1);
-	NRF_SPI_Write(&cmd, 1);
+    NRF_SPI_TransmitReceive(&cmd, &temp, 1);
+	//NRF_SPI_Write(&cmd, 1);
     NRF_SPI_Write(data, length);
     nrf_spi_end();
 }
@@ -500,8 +531,8 @@ void _nrf_write_ack_payload(NRF_PIPE pipe, const uint8_t *data, uint8_t length) 
 void _nrf_read_rx_payload(uint8_t *data, uint8_t length) {
     uint8_t cmd = NRF_CMD_READ_RX_PAYLOAD;
     nrf_spi_start();
- 	//NRF_SPI_TransmitReceive(&cmd, 0, 1);
-	NRF_SPI_Write(&cmd, 1);
+ 	NRF_SPI_TransmitReceive(&cmd, &temp, 1);
+	//NRF_SPI_Write(&cmd, 1);
     NRF_SPI_Read(data, length);
     nrf_spi_end();
 }
@@ -530,14 +561,16 @@ void _nrf_enable_features(uint8_t features) {
 void _nrf_flush_tx(void) {
     uint8_t cmd = NRF_CMD_FLUSH_TX;
     nrf_spi_start();
-    NRF_SPI_Write(&cmd, 1);
+	NRF_SPI_TransmitReceive(&cmd, &temp, 1);
+    //NRF_SPI_Write(&cmd, 1);
     nrf_spi_end();
 }
 
 void _nrf_flush_rx(void) {
     uint8_t cmd = NRF_CMD_FLUSH_RX;
     nrf_spi_start();
-    NRF_SPI_Write(&cmd, 1);
+	NRF_SPI_TransmitReceive(&cmd, &temp, 1);
+    //NRF_SPI_Write(&cmd, 1);
     nrf_spi_end();
 }
 
@@ -555,21 +588,20 @@ static uint8_t nrf_write_reg(uint8_t reg, uint8_t *data, uint8_t len) {
     uint8_t cmd = NRF_CMD_WRITE_REGISTER | reg;
 
     nrf_spi_start();
-    //NRF_SPI_TransmitReceive(&cmd, 0, 1);
-	NRF_SPI_Write(&cmd, 1);
+    NRF_SPI_TransmitReceive(&cmd, &temp, 1);
+	//NRF_SPI_Write(&cmd, 1);
     NRF_SPI_Write(data, len);
     nrf_spi_end();
-
-	nrf_read_reg(reg, nrf_rx_data, len);
-	for (int i=0; i<len; i++) {
-		if (data[i] != nrf_rx_data[i]) {
-			return 1;
-		}
-	}
+	#ifdef SL_DEBUG
+	nrf_read_reg_byte(reg);
+	#endif // SL_DEBUG
 	return 0;
 }
 
 static uint8_t nrf_write_reg_byte(uint8_t reg, uint8_t data) {
+	#ifdef SL_DEBUG
+	uprintf_("write reg 0x%x 0x%x\r\n", reg, data);
+	#endif // SL_DEBUG
     return nrf_write_reg(reg, &data, 1);
 }
 
@@ -577,18 +609,40 @@ static void nrf_read_reg(uint8_t reg, uint8_t *data, uint8_t len) {
     uint8_t cmd = NRF_CMD_READ_REGISTER | reg;
 
     nrf_spi_start();
-    //NRF_SPI_TransmitReceive(&cmd, 0, 1);
-	NRF_SPI_Write(&cmd, 1);
+    NRF_SPI_TransmitReceive(&cmd, &temp, 1);
+	//NRF_SPI_Write(&cmd, 1);
     NRF_SPI_Read(data, len);
     nrf_spi_end();
-    
+
 }
 
 static uint8_t nrf_read_reg_byte(uint8_t reg) {
     uint8_t data;
     nrf_read_reg(reg, &data, 1);
+	#ifdef SL_DEBUG
+	uprintf_("read reg 0x%x 0x%x\r\n", reg, data);
+	#endif // SL_DEBUG
     return data;
 }
+
+static uint8_t nrf_test(void) {
+	uint8_t addr_old[3];
+	nrf_read_reg(NRF_REG_TX_ADDR, addr_old, 3);
+	uint8_t addr_test[3] = {0x12, 0x41, 0xF3};
+	nrf_write_reg(NRF_REG_TX_ADDR, addr_test, 3);
+	uint8_t addr_test_read[3];
+	nrf_read_reg(NRF_REG_TX_ADDR, addr_test_read, 3);
+	nrf_write_reg(NRF_REG_TX_ADDR, addr_old, 3);
+
+	if (memcmp(addr_test, addr_test_read, 3) != 0) {
+		return 1;
+	}
+	#ifdef SL_DEBUG
+	uprintf_("nrf test ok\r\n");
+	#endif // SL_DEBUG
+	return 0;
+}
+
 /* NRF SPI Communication Utils -----------------------------------------------------*/
 static void nrf_spi_start(void) {
     HAL_GPIO_WritePin(NRF_SPI_CSN_GPIO_PORT, NRF_SPI_CSN_PIN, 0);
@@ -604,4 +658,20 @@ static void nrf_spi_delay(void) {
     for (volatile int i = 0; i<20; i++) {
         UNUSED(i);
     }
+}
+
+static void nrf_ce_eanble(void) {
+	
+}
+
+static void nrf_ce_disable(void) {
+	HAL_GPIO_WritePin(NRF_CE_GPIO_Port, NRF_SPI_CE_PIN, 0);
+}
+
+
+
+__weak void nrf_send_callback(void) {
+	#ifdef SL_DEBUG
+	uprintf_("send over\r\n");
+	#endif // SL_DEBUG
 }
