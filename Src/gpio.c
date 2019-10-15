@@ -279,7 +279,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   if (GPIO_Pin == GPIO_PIN_8) {
     nrf_irq_handle();
   }
- __HAL_GPIO_EXTI_CLEAR_IT(GPIO_Pin);
+ //__HAL_GPIO_EXTI_CLEAR_IT(GPIO_Pin);
 }
 /* USER CODE END 2 */
 
