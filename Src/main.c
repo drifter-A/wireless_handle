@@ -33,6 +33,8 @@
 #include "adc_func.h"
 #include "nrf24l01.h"
 #include "simplelib.h"
+#include "ILI93xx.h"
+#include "lcd_func.h"
 
 /* USER CODE END Includes */
 
@@ -102,15 +104,20 @@ int main(void)
   MX_USART1_UART_Init();
   //MX_CAN1_Init();
   MX_ADC1_Init();
-  MX_FSMC_Init();
+  //MX_FSMC_Init();
   MX_SPI3_Init();
   MX_GPIO_Init();
+  
   /* USER CODE BEGIN 2 */
   main_flag = 1;
   simplelib_init(&huart1, &hcan1);
   uint8_t temp_addr[5] = {0x10*2, 0x11*2, 0x12*2, 0x11*2, 0x10*2};
   nrf_set_rx_addr(NRF_PIPE_1, temp_addr, NRF_AW_5);
   nrf_init(NULL);
+  TFTLCD_Init();
+  //lcd_robot_init_func();
+  HAL_ADC_Start(&hadc1);
+  HAL_ADC_Start_DMA(&hadc1,(uint32_t *)&adc_rocker_value,5);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -184,16 +191,24 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_IncTick() {
+void inc() {
   time_1ms_cnt++;
-  if(time_1ms_cnt%10==0){
+  if(time_1ms_cnt%10==0)
+  {
     //time_5ms_flag=1;
     adc_flag = 1;
   }
-  if (time_1ms_cnt == 10000) {
+  
+  if(time_1ms_cnt % 50 == 0)
+  {
+    handle_show_lcd();
+  }
+  if (time_1ms_cnt == 10000)
+  {
     time_1ms_cnt = 0;
   }
 }
+ 
 /* USER CODE END 4 */
 
 /**

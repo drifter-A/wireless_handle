@@ -3,11 +3,18 @@
 #include "string.h"
 uint32_t ADC_Value[150];
 int adc_flag = 0;
-
 float adc_num = 0;
 float adc_power = 0;
 int adc_power_off_flag = 0;
 struct adc_rocker adc_rocker_value;
+
+Handle chassis_handle = {0,0,0,0};
+int16_t handle_rocker[4];
+
+int k = 0;
+int16_t sum[4] = {0};
+#define N 10;
+
 void adc_exe()
 {
     if(adc_flag == 0) return;
@@ -46,8 +53,51 @@ void adc_exe()
         }
         //can_send_msg(324,adc_data,8);//ҡ��id324
         memcpy(temp,(uint16_t *)&adc_data,8);
-        //NRF_Install_TX_Data(temp, 10);
+       /* memcpy(handle_rocker,(uint16_t *)&adc_data,8);
+        
+        
+        //常数修改零偏
+        chassis_handle.ry = handle_rocker[0] - 14;
+        chassis_handle.rx = -(handle_rocker[1] - 4);
+        chassis_handle.ly = handle_rocker[2] - 4;
+        chassis_handle.lx = -(handle_rocker[3] - 5);
+        
+        if(k == 0)
+        {
+          sum[0] = sum[0] + handle_rocker[0] - 16;
+          sum[1] = sum[1] + (-(handle_rocker[1] - 4));
+          sum[2] = sum[2] + handle_rocker[2] - 1;
+          sum[3] = sum[3] + (-(handle_rocker[3] - 5));
+          
+          sum[0] = sum[0] / N;
+          sum[1] = sum[1] / N;
+          sum[2] = sum[2] / N;
+          sum[3] = sum[3] / N;
+           
+          memcpy(temp,(uint16_t *)&sum,8);
+          nrf_send_data(temp, 10);
+          
+          sum[0] = 0;
+          sum[1] = 0;
+          sum[2] = 0;
+          sum[3] = 0;
+          
+          k = (k + 1) % N;
+        }
+        else
+        {
+          sum[0] = sum[0] + handle_rocker[0] - 16;
+          sum[1] = sum[1] + (-(handle_rocker[1] - 4));
+          sum[2] = sum[2] + handle_rocker[2] - 1;
+          sum[3] = sum[3] + (-(handle_rocker[3] - 5));
+          
+          k = (k + 1) % N;
+        }*/
+        
+        //uprintf("%d,%d,%d,%d",chassis_handle.ly ,chassis_handle.lx,chassis_handle.ry,chassis_handle.rx);
         nrf_send_data(temp, 10);
+        
+        //NRF_Install_TX_Data(temp, 10);
         //nrf_send(adc_data,7);//nrf��һλ��R
     adc_flag = 0;
 }

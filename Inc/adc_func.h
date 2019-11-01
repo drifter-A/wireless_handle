@@ -19,12 +19,21 @@ struct adc_rocker {
   uint16_t adc_left1;
   uint16_t adc_left2;
 };
+
+typedef struct{
+  int ly;
+  int lx;
+  int ry;
+  int rx;
+}Handle;
      
 void adc_exe();
 extern int adc_flag;
 extern uint32_t ADC_Value[150];
+
 extern struct adc_rocker adc_rocker_value;
 extern int adc_power_off_flag;
+extern Handle chassis_handle;
      
      
 #ifdef __cplusplus

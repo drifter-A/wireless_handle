@@ -39,10 +39,10 @@ static int id_cmp(const void*, const void*);
 void can_init(CAN_HandleTypeDef *hcan) {
     HCAN = *hcan;
     CAN_config(&HCAN);
-    if (can_callback_table == NULL) {
+    /*if (can_callback_table == NULL) {
         can_callback_table = HashTable_create(id_cmp, hash_id, NULL);
     }
-    can_func_init();
+    can_func_init();*/
 }
 
 /**

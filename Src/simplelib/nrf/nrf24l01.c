@@ -17,6 +17,7 @@
 #ifdef SL_DEBUG
 #include "can_utils.h"
 #include "usart.h"
+
 #endif // SL_DEBUG
 
 /*******************************************************************************
@@ -63,17 +64,17 @@ can_msg msg;
  *******************************************************************************/
 //static uint8_t nrf_spi_rx;
 static NRF_ConfigTypeDef nrf_config = {
-    speed : NRF_SPEED_2M,
-    power : NRF_POWER_UP,
-    rf_power : NRF_RF_POWER_0DBM,
-    crc_type : NRF_CRC_2B,
-    retry_delay : NRF_RETR_DELAY_500US,
-    retries : 10,
-    channel : 0,
-	pipes : 0x3,
-    address : {0x10*NRF_ADDR_COF, 0x11*NRF_ADDR_COF, 0x12*NRF_ADDR_COF, 0x11*NRF_ADDR_COF, 0x10*NRF_ADDR_COF},
-    addr_len : NRF_AW_5,
-    send_crc_ack : true
+    NRF_SPEED_2M,
+    NRF_POWER_UP,
+    NRF_RF_POWER_0DBM,
+    NRF_CRC_2B,
+    NRF_RETR_DELAY_500US,
+    10,
+    0,
+    0x3,
+    {0x10*NRF_ADDR_COF, 0x11*NRF_ADDR_COF, 0x12*NRF_ADDR_COF, 0x11*NRF_ADDR_COF, 0x10*NRF_ADDR_COF},
+    NRF_AW_5,
+    true
 };
 static NRF_AW nrf_addr_width;
 static uint8_t nrf_tx_addr[5];

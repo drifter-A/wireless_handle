@@ -28,7 +28,7 @@ uint8_t DMAaRxBuffer[DMA_BUFFER_SIZE];
 char DMAUSART_RX_BUF[DMA_BUFFER_SIZE];
 int DMA_RxOK_Flag = 0;
 int buffer_count = 0;
-char uart_buffer[DMA_BUFFER_SIZE];
+//char uart_buffer[DMA_BUFFER_SIZE];
 
 
 /* private function -----------------------------------------------------*/

@@ -23,8 +23,8 @@ asm(".global _printf_float");
 void simplelib_init(UART_HandleTypeDef *cmd_usart, CAN_HandleTypeDef *hcan) {
     usart_DMA_init(cmd_usart);
     can_init(hcan);
-    cmd_func_init();
-    can_func_init();
+    //cmd_func_init();
+    //can_func_init();
     uprintf("simplelib init done\r\n");
 }
 

@@ -18,6 +18,7 @@
   ******************************************************************************
   */
 /* USER CODE END Header */
+void inc();
 
 /* Define to prevent recursive inclusion -------------------------------------*/
 #ifndef __MAIN_H
@@ -65,6 +66,16 @@ void Error_Handler(void);
 #define NRF_IRQ_GPIO_Port GPIOB
 #define NRF_CE_Pin GPIO_PIN_9
 #define NRF_CE_GPIO_Port GPIOB
+#define ADC_POWER_Pin GPIO_PIN_2
+#define ADC_POWER_GPIO_Port GPIOA
+#define RIGHT1_Pin GPIO_PIN_4
+#define RIGHT1_GPIO_Port GPIOA
+#define RIGHT2_Pin GPIO_PIN_5
+#define RIGHT2_GPIO_Port GPIOA
+#define LEFT1_Pin GPIO_PIN_6
+#define LEFT1_GPIO_Port GPIOA
+#define LEFT2_Pin GPIO_PIN_7
+#define LEFT2_GPIO_Port GPIO
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
